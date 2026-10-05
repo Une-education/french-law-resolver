@@ -246,7 +246,51 @@ if ($method === 'prompts/list') {
     sendJsonRpc($id, ['prompts' => []]);
 }
 
+function checkAuthAndDeductCredits(int $cost = 10): ?array {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!preg_match('/Bearer\\s+(sk_live_[a-zA-Z0-9]+)/', $authHeader, $matches)) {
+        return null; // Public / anonyme
+    }
+
+    $rawKey = $matches[1];
+    $keyHash = hash('sha256', $rawKey);
+    $dbPath = '/var/www/atoa-api/gateway.sqlite';
+
+    try {
+        $db = new PDO("sqlite:{$dbPath}", null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]);
+
+        $stmt = $db->prepare('SELECT id, balance_credits, is_active FROM api_keys WHERE key_hash = ?');
+        $stmt->execute([$keyHash]);
+        $keyData = $stmt->fetch();
+
+        if (!$keyData || (int)$keyData['is_active'] !== 1) {
+            return ['valid' => false, 'error' => 'Clé API invalide ou révoquée.'];
+        }
+
+        if ((int)$keyData['balance_credits'] < $cost) {
+            return ['valid' => false, 'error' => 'Solde de crédits insuffisant. Veuillez recharger votre clé.'];
+        }
+
+        $update = $db->prepare('UPDATE api_keys SET balance_credits = balance_credits - ? WHERE id = ?');
+        $update->execute([$cost, $keyData['id']]);
+
+        return ['valid' => true, 'key_id' => $keyData['id'], 'remaining' => $keyData['balance_credits'] - $cost];
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
 if ($method === 'tools/call') {
+    $authCheck = checkAuthAndDeductCredits(10);
+    if ($authCheck !== null && !$authCheck['valid']) {
+        sendJsonRpc($id, null, [
+            'code' => -32001,
+            'message' => $authCheck['error']
+        ]);
+    }
     $toolName = $request['params']['name'] ?? '';
     $args = $request['params']['arguments'] ?? [];
 
