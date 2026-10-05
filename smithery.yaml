@@ -1,0 +1,8 @@
+startCommand:
+  type: stdio
+  config:
+    command: npx
+    args:
+      - -y
+      - mcp-remote
+      - https://legal.une.education/france/mcp.php
