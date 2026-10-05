@@ -180,6 +180,14 @@ if ($method === 'tools/list') {
     sendJsonRpc($id, ['tools' => $tools]);
 }
 
+if ($method === 'resources/list') {
+    sendJsonRpc($id, ['resources' => []]);
+}
+
+if ($method === 'prompts/list') {
+    sendJsonRpc($id, ['prompts' => []]);
+}
+
 if ($method === 'tools/call') {
     $toolName = $request['params']['name'] ?? '';
     $args = $request['params']['arguments'] ?? [];
