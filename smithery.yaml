@@ -6,3 +6,9 @@ startCommand:
       - -y
       - mcp-remote
       - https://legal.une.education/france/mcp.php
+server:
+  name: french-law-resolver
+  displayName: French Law & Dispute Resolver
+  description: Deterministic French legal computation & B2B contract dispute engine (Légifrance, Judilibre).
+  homepageUrl: https://une.education
+  iconUrl: https://une.education/favicon.ico
