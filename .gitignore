@@ -1,0 +1,6 @@
+*.sqlite
+*.sqlite3
+*.db
+*.log
+stripe_config.php
+.DS_Store
