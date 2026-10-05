@@ -214,6 +214,20 @@ $tools = [
     ]
 ];
 
+if ($method === 'initialize') {
+    sendJsonRpc($id, [
+        'protocolVersion' => '2024-11-05',
+        'capabilities' => [
+            'tools' => [
+                'listChanged' => false
+            ]
+        ],
+        'serverInfo' => [
+            'name' => 'french-law-resolver',
+            'version' => '1.0.0'
+        ]
+    ]);
+}
 if ($method === 'tools/list') {
     sendJsonRpc($id, ['tools' => $tools]);
 }
