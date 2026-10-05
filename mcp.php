@@ -587,4 +587,8 @@ if ($method === 'tools/call') {
     sendJsonRpc($id, null, ['code' => -32601, 'message' => "Outil inconnu : $toolName"]);
 }
 
-sendJsonRpc($id, null, ['code' => -32601, 'message' => "Méthode non supportée : $method"]);
+if (empty($method) || $method === "ping" || str_starts_with($method, "notifications/")) {
+    sendJsonRpc($id, ["status" => "ready"]);
+    exit;
+}
+sendJsonRpc($id, null, ["code" => -32601, "message" => "Méthode non supportée : " . $method]);
