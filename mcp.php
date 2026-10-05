@@ -15,16 +15,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $rawInput = file_get_contents('php://input');
 $request = json_decode($rawInput, true);
+$method = $request['method'] ?? null;
+$id = $request['id'] ?? null;
+$params = $request['params'] ?? [];
 
 function sendJsonRpc(string|int|null $id, ?array $result, ?array $error = null): void {
-    $res = ['jsonrpc' => '2.0'];
-    if ($id !== null) {
-        $res['id'] = $id;
-    }
+    $res = [
+        'jsonrpc' => '2.0',
+        'id' => $id ?? 0
+    ];
     if ($error !== null) {
         $res['error'] = $error;
     } else {
-        $res['result'] = $result;
+        $res['result'] = $result ?? [];
     }
     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
@@ -213,6 +216,12 @@ $tools = [
 
 if ($method === 'tools/list') {
     sendJsonRpc($id, ['tools' => $tools]);
+}
+if ($method === 'resources/list') {
+    sendJsonRpc($id, ['resources' => []]);
+}
+if ($method === 'prompts/list') {
+    sendJsonRpc($id, ['prompts' => []]);
 }
 
 if ($method === 'resources/list') {
