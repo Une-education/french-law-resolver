@@ -30,151 +30,186 @@ function sendJsonRpc(string|int|null $id, ?array $result, ?array $error = null):
     exit;
 }
 
+
 $tools = [
     [
-        'name' => 'resolve_article_status',
-        'description' => 'Vérifie l\'état de vigueur, l\'intitulé et le texte intégral d\'un article de code français (Code civil, commerce, travail, etc.) à date T.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'code' => ['type' => 'string', 'description' => 'Nom du code (ex: "Code civil", "Code de commerce")'],
-                'num' => ['type' => 'string', 'description' => 'Numéro de l\'article (ex: "1104", "L110-4", "1240")']
+        "name" => "resolve_article_status",
+        "description" => "Verifies statutory article applicability, active status (VIGUEUR), and exact consolidated legal text at date T.",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "code" => ["type" => "string", "description" => "Target French legal code (e.g. civil, commerce, travail, consommation)"],
+                "num" => ["type" => "string", "description" => "Statutory article number (e.g. 1104, L442-1)"]
             ],
-            'required' => ['code', 'num']
+            "required" => ["code", "num"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "article" => ["type" => "string"],
+                "code" => ["type" => "string"],
+                "etat" => ["type" => "string"],
+                "date_debut" => ["type" => "string"],
+                "date_fin" => ["type" => "string"],
+                "texte" => ["type" => "string"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["article", "code", "etat", "texte", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => true,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ],
     [
-        'name' => 'search_jurisprudence_precedent',
-        'description' => 'Recherche ciblée de précédents de la Cour de cassation par mot-clé juridique ou thème.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'query' => ['type' => 'string', 'description' => 'Terme juridique ou motif de pourvoi (ex: "rupture brutale", "clause résolutoire")'],
-                'limit' => ['type' => 'integer', 'default' => 5, 'description' => 'Nombre maximal d\'arrêts (max 15)']
+        "name" => "search_jurisprudence_precedent",
+        "description" => "Performs ranked FTS5 precedent search over French Court of Cassation decisions (Judilibre) returning official ECLI identifiers, rulings, and chamber analysis.",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "query" => ["type" => "string", "description" => "Legal keywords, doctrinal principles or statutory references"],
+                "limit" => ["type" => "integer", "description" => "Max results to return (default: 3, max: 10)"]
             ],
-            'required' => ['query']
+            "required" => ["query"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "query" => ["type" => "string"],
+                "total_found" => ["type" => "integer"],
+                "results" => ["type" => "array"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["query", "results", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => true,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ],
     [
-        'name' => 'french_statute_of_limitations',
-        'description' => 'Calcul déterministe des délais de prescription extinctive de droit commun ou spécial en droit des obligations français, avec sceau cryptographique SHA-256.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'event_date' => ['type' => 'string', 'description' => 'Date du fait générateur ou de la créance (YYYY-MM-DD)'],
-                'regime' => [
-                    'type' => 'string',
-                    'enum' => ['civil_droit_commun', 'commercial_l110_4', 'consommation_professionnel', 'travail_salaire', 'responsabilite_delictuelle'],
-                    'description' => 'Régime juridique applicable'
-                ]
+        "name" => "french_statute_of_limitations",
+        "description" => "Computes deterministic statutory limitation and prescription periods under French law (Articles 2224 Civil Code, L. 110-4 Commercial Code, etc.).",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "claim_type" => ["type" => "string", "description" => "Claim category: commercial, civil_contract, consumer, employment, tort"],
+                "starting_point_date" => ["type" => "string", "description" => "Trigger date (ISO 8601 YYYY-MM-DD)"]
             ],
-            'required' => ['event_date', 'regime']
+            "required" => ["claim_type", "starting_point_date"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "claim_type" => ["type" => "string"],
+                "duration_years" => ["type" => "integer"],
+                "expiry_date" => ["type" => "string"],
+                "statutory_basis" => ["type" => "string"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["claim_type", "expiry_date", "statutory_basis", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => true,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ],
-	[
-        'name' => 'french_commercial_termination_risk',
-        'description' => 'Calculates mandatory statutory notice periods and financial liability exposure for sudden termination of established B2B commercial relationships under French Commercial Code (Art. L. 442-1, II). Includes bilingual output.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'relationship_duration_years' => [
-                    'type' => 'number',
-                    'description' => 'Duration of the commercial relationship in years (e.g. 8.5)'
-                ],
-                'annual_gross_margin_eur' => [
-                    'type' => 'number',
-                    'description' => 'Average annual gross margin (or margin on variable costs) earned from this partner in EUR'
-                ],
-                'dependency_rate_percent' => [
-                    'type' => 'number',
-                    'description' => 'Estimated economic dependency of the victim partner on this contract (0-100%)',
-                    'default' => 15
-                ],
-                'contractual_notice_months' => [
-                    'type' => 'integer',
-                    'description' => 'Notice period stipulated in the contract (in months)',
-                    'default' => 3
-                ]
+    [
+        "name" => "french_commercial_termination_risk",
+        "description" => "Evaluates financial and legal exposure for abrupt rupture of established B2B commercial relationships under Article L. 442-1, II of French Commercial Code.",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "relationship_duration_years" => ["type" => "number", "description" => "Continuous duration of commercial relations in years"],
+                "annual_gross_margin_eur" => ["type" => "number", "description" => "Average annual gross margin generated from partner in EUR"],
+                "dependency_rate_percent" => ["type" => "number", "description" => "Percentage of revenue represented by this partner"],
+                "contractual_notice_months" => ["type" => "number", "description" => "Notice period given or provided by contract"]
             ],
-            'required' => ['relationship_duration_years', 'annual_gross_margin_eur']
+            "required" => ["relationship_duration_years", "annual_gross_margin_eur", "dependency_rate_percent", "contractual_notice_months"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "reasonable_notice_months" => ["type" => "number"],
+                "notice_shortfall_months" => ["type" => "number"],
+                "estimated_gross_margin_exposure_eur" => ["type" => "number"],
+                "legal_ceiling_applied" => ["type" => "boolean"],
+                "statutory_reference" => ["type" => "string"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["reasonable_notice_months", "estimated_gross_margin_exposure_eur", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => true,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ],
-	[
-        'name' => 'french_breach_remedy_notice',
-        'description' => 'Generates legally compliant, enforceable formal notices of breach (Mise en demeure) triggering termination clauses under French Civil Code (Art. 1225 & 1226). Outputs structured bilingual summons.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'creditor_name' => ['type' => 'string', 'description' => 'Legal name of the notifying party'],
-                'debtor_name' => ['type' => 'string', 'description' => 'Legal name of the breaching party'],
-                'contract_reference' => ['type' => 'string', 'description' => 'Contract title/date/reference'],
-                'breach_type' => [
-                    'type' => 'string',
-                    'enum' => ['payment_default', 'non_performance', 'delayed_delivery', 'confidentiality_breach'],
-                    'description' => 'Nature of the contractual breach'
-                ],
-                'amount_due_eur' => ['type' => 'number', 'description' => 'Outstanding amount if payment breach (optional)'],
-                'remedy_period_days' => ['type' => 'integer', 'default' => 15, 'description' => 'Cure period granted in days']
+    [
+        "name" => "french_breach_remedy_notice",
+        "description" => "Generates compliant formal cure notice (Mise en demeure) enforcing statutory resolutory clauses under Articles 1225 and 1226 of the French Civil Code.",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "creditor_name" => ["type" => "string", "description" => "Legal entity name of creditor issuing notice"],
+                "debtor_name" => ["type" => "string", "description" => "Legal entity name of defaulting party"],
+                "contract_reference" => ["type" => "string", "description" => "Contract ID, date, or agreement reference"],
+                "breach_type" => ["type" => "string", "description" => "Breach category: payment_default, service_failure, delivery_delay, confidentiality"],
+                "amount_due_eur" => ["type" => "number", "description" => "Outstanding claim amount in EUR (optional)"],
+                "remedy_period_days" => ["type" => "integer", "description" => "Cure period granted (default: 15 days)"]
             ],
-            'required' => ['creditor_name', 'debtor_name', 'contract_reference', 'breach_type']
+            "required" => ["creditor_name", "debtor_name", "contract_reference", "breach_type"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "subject" => ["type" => "string"],
+                "formal_notice_body" => ["type" => "string"],
+                "statutory_references" => ["type" => "array"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["formal_notice_body", "statutory_references", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => false,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ],
-	[
-        'name' => 'french_b2b_clause_validator',
-        'description' => 'Evaluates French statutory unenforceability risk for standard B2B contractual clauses under Art. 1170/1171 French Civil Code and Art. L. 442-1, I French Commercial Code (significant imbalance & core obligations).',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'clause_category' => [
-                    'type' => 'string',
-                    'enum' => [
-                        'liability_cap_derisory',
-                        'unilateral_termination_asymmetric',
-                        'unilateral_price_modification',
-                        'excessive_penalty_clause',
-                        'disproportionate_audit_rights'
-                    ],
-                    'description' => 'Typology of the clause to be reviewed'
-                ],
-                'is_adhesion_contract' => [
-                    'type' => 'boolean',
-                    'description' => 'Whether the contract is standard non-negotiable terms (contrat d adhésion)',
-                    'default' => true
-                ],
-                'clause_text_excerpt' => [
-                    'type' => 'string',
-                    'description' => 'Excerpt of the contractual clause (optional)'
-                ]
+    [
+        "name" => "french_b2b_clause_validator",
+        "description" => "Assesses statutory validity and unenforceability risk for abusive B2B contract terms, derisory caps (Art. 1170 C. civ.) and significant imbalance (Art. 1171 C. civ. & L. 442-1 C. com.).",
+        "inputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "clause_type" => ["type" => "string", "description" => "Clause type: liability_cap, non_compete, unilateral_modification, penalty_clause"],
+                "annual_contract_value_eur" => ["type" => "number", "description" => "Annual contractual value in EUR"],
+                "liability_cap_eur" => ["type" => "number", "description" => "Proposed liability cap in EUR (if applicable)"],
+                "standard_terms_adhésion" => ["type" => "boolean", "description" => "True if non-negotiable adhesion contract under Art. 1110 C. civ."]
             ],
-            'required' => ['clause_category']
+            "required" => ["clause_type"]
+        ],
+        "outputSchema" => [
+            "type" => "object",
+            "properties" => [
+                "clause_type" => ["type" => "string"],
+                "validity_status" => ["type" => "string"],
+                "risk_level" => ["type" => "string"],
+                "doctrinal_analysis" => ["type" => "string"],
+                "audit_seal" => ["type" => "object"]
+            ],
+            "required" => ["clause_type", "validity_status", "risk_level", "audit_seal"]
+        ],
+        "annotations" => [
+            "readOnlyHint" => true,
+            "destructiveHint" => false,
+            "deterministicHint" => true
         ]
     ]
 ];
-
-// Requête GET d'information
-if (!$request || !isset($request['method'])) {
-    sendJsonRpc(null, [
-        'name' => 'French Law Compliance & Precedent Resolver',
-        'status' => 'operational',
-        'protocol' => 'MCP/JSON-RPC-2.0',
-        'corpus' => 'Légifrance (Codes consolidés) & Judilibre (Cour de cassation)',
-        'tools_count' => count($tools)
-    ]);
-}
-
-$id = $request['id'] ?? null;
-$method = $request['method'];
-
-if ($method === 'initialize') {
-    sendJsonRpc($id, [
-        'protocolVersion' => '2024-11-05',
-        'capabilities' => ['tools' => new stdClass()],
-        'serverInfo' => [
-            'name' => 'french-law-resolver',
-            'version' => '1.0.0'
-        ]
-    ]);
-}
 
 if ($method === 'tools/list') {
     sendJsonRpc($id, ['tools' => $tools]);
