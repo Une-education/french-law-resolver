@@ -20,6 +20,7 @@ $id = $request['id'] ?? null;
 $params = $request['params'] ?? [];
 
 function sendJsonRpc(string|int|null $id, ?array $result, ?array $error = null): void {
+    global $t_start, $method, $rawInput;
     $res = [
         'jsonrpc' => '2.0',
         'id' => $id ?? 0
@@ -29,6 +30,29 @@ function sendJsonRpc(string|int|null $id, ?array $result, ?array $error = null):
     } else {
         $res['result'] = $result ?? [];
     }
+
+    try {
+        $logDbPath = __DIR__ . '/auth.sqlite';
+        if (file_exists($logDbPath)) {
+            $logDb = new PDO('sqlite:' . $logDbPath);
+            $logDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+            $logDb->exec("CREATE TABLE IF NOT EXISTS mcp_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                ip TEXT,
+                method TEXT,
+                user_agent TEXT,
+                payload TEXT,
+                exec_time_ms REAL
+            );");
+            $execMs = isset($t_start) ? round((microtime(true) - $t_start) * 1000, 2) : 0;
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'cli';
+            $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $stmt = $logDb->prepare("INSERT INTO mcp_logs (ip, method, user_agent, payload, exec_time_ms) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$ip, $method ?? 'unknown', $ua, substr($rawInput ?? '', 0, 500), $execMs]);
+        }
+    } catch (\Throwable $e) {}
+
     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
